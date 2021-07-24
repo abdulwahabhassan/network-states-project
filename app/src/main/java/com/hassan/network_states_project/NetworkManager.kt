@@ -3,16 +3,51 @@ package com.hassan.network_states_project
 import android.content.Context
 import android.net.*
 import android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET
-import android.os.Build
 import android.util.Log
-import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat.getSystemService
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleObserver
+import androidx.lifecycle.OnLifecycleEvent
 
+//Note: Some of the explanations in this note might be somehow confusing due to slight modifications
+//in the code. I may have abstracted away some classes and methods for better organization of the code
+//So you may not find the relevant code to a note immediately below it **
 
-class NetworkManager(private val context: Context) {
+class NetworkManager(context: Context, private val lifecycle: Lifecycle) : LifecycleObserver {
     //create an instance of connectivity manager
     //Connectivity Manager tells your app about the state of connectivity in the system.
     private val connectivityManager = getSystemService(context, ConnectivityManager::class.java)
+    private lateinit var defaultNetworkCallBack : ConnectivityManager.NetworkCallback
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_CREATE)
+    fun initDefaultNetworkCallback () {
+        defaultNetworkCallBack = object : ConnectivityManager.NetworkCallback() {
+
+            //called when a new network becomes the default
+            override fun onAvailable(network: Network) {
+                Log.e(TAG, "The default network is now: $network")
+            }
+
+            //called when default network loses status of being the default network
+            override fun onLost(network: Network) {
+                Log.e(TAG,
+                    "The application no longer has a default network. The last default network was $network")
+            }
+
+            //called when default network changed capabilities
+            override fun onCapabilitiesChanged(
+                network: Network,
+                networkCapabilities: NetworkCapabilities
+            ) {
+                Log.e(TAG, "The default network changed capabilities: $networkCapabilities")
+            }
+
+            //called when default network changed linked properties
+            override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) {
+                Log.e(TAG, "The default network changed link properties: $linkProperties")
+            }
+        }
+    }
 
     //ensure to have declared ACCESS_NETWORK_STATE in manifest file
     //get reference to current default network
@@ -55,35 +90,18 @@ class NetworkManager(private val context: Context) {
     //as switching from a slower cellular network to a nearby faster wifi network.
     //To know when the default  network changes, register a default network call back like so,
 
-    @RequiresApi(Build.VERSION_CODES.N)
+    @OnLifecycleEvent(Lifecycle.Event.ON_START)
     fun registerDefaultCallBack() {
-        connectivityManager?.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+        //we query the current state of the lifecycle particularly for the ON_START event
+        //to ensure that the lifecycle of the component we are observing is in a good state before
+        //our code runs. This is more useful for codes that update the UI
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+        connectivityManager?.registerDefaultNetworkCallback(defaultNetworkCallBack)
+    }
 
-            //called when a new network becomes the default
-            override fun onAvailable(network: Network) {
-                Log.e(TAG, "The default network is now: $network")
-            }
-
-            //called when default network loses status of being the default network
-            override fun onLost(network: Network) {
-                Log.e(TAG,
-                    "The application no longer has a default network. The last default network was $network"
-                )
-            }
-
-            //called when default network changed capabilities
-            override fun onCapabilitiesChanged(
-                network: Network,
-                networkCapabilities: NetworkCapabilities
-            ) {
-                Log.e(TAG, "The default network changed capabilities: $networkCapabilities")
-            }
-
-            //called when default network changed linked properties
-            override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) {
-                Log.e(TAG, "The default network changed link properties: $linkProperties")
-            }
-        })
+    @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
+    fun unregisterDefaultNetworkCallback() {
+        connectivityManager?.unregisterNetworkCallback(defaultNetworkCallBack)
     }
 
     //callbacks should be unregistered when no longer in use by calling
@@ -105,36 +123,39 @@ class NetworkManager(private val context: Context) {
         //We also pass in a callback represented by an anonymous object
         connectivityManager?.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
 
-            //called when a new network becomes the default
+            //called when a new network is available
             override fun onAvailable(network: Network) {
-                Log.e(TAG, "The default network is now: $network")
+                Log.e(TAG, "The new network is now: $network")
             }
 
-            //called when default network loses status of being the default network
+            //called when network is lost
             override fun onLost(network: Network) {
-                Log.e(TAG,
-                    "The application no longer has a default network. The last default network was $network"
-                )
+                Log.e(TAG, "Network lost. The lost network was $network")
             }
 
-            //called when default network changed capabilities
+            //called when network changed capabilities
             override fun onCapabilitiesChanged(
                 network: Network,
                 networkCapabilities: NetworkCapabilities
             ) {
-                Log.e(TAG, "The default network changed capabilities: $networkCapabilities")
+                Log.e(TAG, "The network changed capabilities: $networkCapabilities")
             }
 
-            //called when default network changed linked properties
+            //called when network changed linked properties
             override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) {
-                Log.e(TAG, "The default network changed link properties: $linkProperties")
+                Log.e(TAG, "The network changed link properties: $linkProperties")
             }
         })
     }
 
 
     companion object{
-        const val TAG = "netWorkQuery"
+        const val TAG = "NETWORK"
     }
 
+}
+
+sealed class NetworkAvailability {
+    object Unavailable : NetworkAvailability()
+    object Available : NetworkAvailability()
 }

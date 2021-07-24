@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId "com.hassan.network_states_project"
-        minSdkVersion 23
+        minSdkVersion 26
         targetSdkVersion 30
         versionCode 1
         versionName "1.0"
@@ -51,5 +51,7 @@ dependencies {
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.3.1"
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.3.1"
     implementation "androidx.lifecycle:lifecycle-livedata-ktx:2.3.1"
-    implementation "androidx.lifecycle:lifecycle-extensions:2.2.0"
+//  implementation "androidx.lifecycle:lifecycle-extensions:2.2.0" //apis in lifecycle-extensions are deprecated, instead
+    //we import the specific lifecycle artifacts we need
+    implementation 'androidx.lifecycle:lifecycle-process:2.3.1' //provides lifecycle for the whole application process
 }
