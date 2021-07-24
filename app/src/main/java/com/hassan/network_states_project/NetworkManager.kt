@@ -5,9 +5,11 @@ import android.net.*
 import android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET
 import android.util.Log
 import androidx.core.content.ContextCompat.getSystemService
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.OnLifecycleEvent
+import androidx.lifecycle.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 //Note: Some of the explanations in this note might be somehow confusing due to slight modifications
 //in the code. I may have abstracted away some classes and methods for better organization of the code
@@ -18,6 +20,11 @@ class NetworkManager(context: Context, private val lifecycle: Lifecycle) : Lifec
     //Connectivity Manager tells your app about the state of connectivity in the system.
     private val connectivityManager = getSystemService(context, ConnectivityManager::class.java)
     private lateinit var defaultNetworkCallBack : ConnectivityManager.NetworkCallback
+    val job =  Job()
+
+    //This life data updates when our network states changes and is being observed in main activity
+    val networkState = MutableLiveData<NetworkAvailability>(NetworkAvailability.Unavailable)
+
 
     @OnLifecycleEvent(Lifecycle.Event.ON_CREATE)
     fun initDefaultNetworkCallback () {
@@ -26,12 +33,16 @@ class NetworkManager(context: Context, private val lifecycle: Lifecycle) : Lifec
             //called when a new network becomes the default
             override fun onAvailable(network: Network) {
                 Log.e(TAG, "The default network is now: $network")
+
             }
 
             //called when default network loses status of being the default network
             override fun onLost(network: Network) {
                 Log.e(TAG,
                     "The application no longer has a default network. The last default network was $network")
+                CoroutineScope(Dispatchers.Main + job).launch {
+                    networkState.value = NetworkAvailability.Unavailable
+                }
             }
 
             //called when default network changed capabilities
@@ -40,6 +51,21 @@ class NetworkManager(context: Context, private val lifecycle: Lifecycle) : Lifec
                 networkCapabilities: NetworkCapabilities
             ) {
                 Log.e(TAG, "The default network changed capabilities: $networkCapabilities")
+                 if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                     //This launches a coroutine that sets the value of our mutable live data to Available
+                     //once we have a default network with NET_CAPABILITY_VALIDATED
+                     //We use a coroutine to set the value on the main thread since we cannot
+                     //set value on a background thread
+                     //The job object is used to hold a ref to the coroutine for cancelling later
+                     CoroutineScope(Dispatchers.Main + job).launch {
+                         networkState.value = NetworkAvailability.Available
+                     }
+                } else {
+                     CoroutineScope(Dispatchers.Main + job).launch {
+                         networkState.value = NetworkAvailability.Unavailable
+                     }
+                }
+
             }
 
             //called when default network changed linked properties
@@ -102,6 +128,11 @@ class NetworkManager(context: Context, private val lifecycle: Lifecycle) : Lifec
     @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
     fun unregisterDefaultNetworkCallback() {
         connectivityManager?.unregisterNetworkCallback(defaultNetworkCallBack)
+    }
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+    fun cancelJob() {
+        job.cancel()
     }
 
     //callbacks should be unregistered when no longer in use by calling

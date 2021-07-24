@@ -58,3 +58,10 @@ package com.hassan.network_states_project
 //It is used by Fragments and Support Library Activities. You can also directly use it if you have a custom LifecycleOwner.
 //If you have a custom class that you would like to make a LifecycleOwner,
 //you can use the LifecycleRegistry class, but you need to forward events into that class
+
+//The lifecycle of fragments can be considerably longer than the lifecycle of the view they contain.
+//If an observer interacts with the user interface (views) in a fragment, this can cause a problem because
+//the observer can modify a view before it’s initialized yet or after it’s destroyed.
+//So sometimes we use viewLifecycleOwner within Fragments.
+//You can start using this lifecycle owner during onCreateView() and before onDestroyView().
+//Once the view lifecycle gets destroyed, it won’t dispatch any more events.
