@@ -31,4 +31,6 @@ class MainViewModel : ViewModel() {
         )
     }
 
+    fun getSequence() = sequenceOf("Alan", "Jack", "Manuel", "Sam")
+
 }
