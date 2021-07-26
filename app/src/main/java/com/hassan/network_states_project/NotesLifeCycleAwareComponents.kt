@@ -44,6 +44,19 @@ package com.hassan.network_states_project
 //A lifecycleOwner provides a lifecycle which a lifecycleObserver can register to watch
 
 //ProcessLifecycleOwner is the interface that is used in the case of managing a whole application process
+//This class provides a lifecycle for the entire app process. It dispatches ON_CREATE only once,
+//when the app starts for the first time. It won’t dispatch ON_DESTROY at all.
+//ProcessLifecycleOwner dispatches ON_START and ON_RESUME when the first activity in the app goes through these states.
+//Finally, ProcessLifecycleOwner dispatches ON_PAUSE and ON_STOP events after the last visible activity of the app goes through them.
+//It’s important to know that these last two events will happen after a certain delay.
+//There’s a delay because ProcessLifecycleOwner needs to be sure of the reason for these changes.
+//It only needs to dispatch these events if they happen because the app went to the background and not due to configuration changes.
+//We can use ProcessLifecycleOwner to track whenever the app comes to the foreground or goes to the background.
+//As this happens when the lifecycle owner sends the ON_START and ON_STOP events respectively.
+//Any class or component can track the lifecycle changes of the application by making such class or component extend
+//lifecycleObserver. However to register the component or class with the application(lifecycleOwner), we do so
+//in a slightly different like so: ProcessLifecycleOwner.get().lifecycle.addObserver(observerComponent)
+//This method is called in the onCreate of the application
 
 //A component A that wants to observe the lifecycle of another component B will be instantiated in the onCreate method
 //of the Component B and passed the lifecycle of the component B as a constructor parameter. This makes the newly
@@ -65,3 +78,9 @@ package com.hassan.network_states_project
 //So sometimes we use viewLifecycleOwner within Fragments.
 //You can start using this lifecycle owner during onCreateView() and before onDestroyView().
 //Once the view lifecycle gets destroyed, it won’t dispatch any more events.
+
+//We cam create a custom lifecycleOwner that other components can observe. We simply extend the lifecycleOwner
+//on our custom class or component, make an instance of LifecycleRegistry within this custom class, passing in
+//the class itself as a provider to the constructor of the LifecycleRegistry, then overriding getLifecycle
+//so that it returns the LifecycleRegistry instance. After this, we make use of handleLifecycleEvent to
+//set the current state of the lifecycle and notify observers when a lifecycle events has occurs.
